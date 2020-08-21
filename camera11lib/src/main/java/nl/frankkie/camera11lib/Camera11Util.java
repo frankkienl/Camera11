@@ -19,7 +19,7 @@ import java.util.zip.ZipFile;
 
 import fr.xgouchet.axml.CompressedXmlParser;
 
-class Util {
+class Camera11Util {
 
     public static List<CameraAppModel> getCameraAppsFromPackageInfos(List<PackageInfo> packageInfos) throws IOException {
         ArrayList<CameraAppModel> cameraApps = new ArrayList<CameraAppModel>();
@@ -27,6 +27,9 @@ class Util {
             try {
                 Document doc = readAndroidManifestFromPackageInfo(somePackage);
                 List<ComponentName> componentNameList = getCameraComponentNamesFromDocument(doc);
+                if (componentNameList.size() == 0) {
+                    continue;
+                }
                 cameraApps.add(new CameraAppModel(somePackage, componentNameList));
             } catch (Exception e) {
                 //Couldn't read this app.

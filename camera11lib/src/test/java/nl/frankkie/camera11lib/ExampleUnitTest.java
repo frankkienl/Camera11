@@ -8,7 +8,7 @@ import java.io.InputStream;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import static nl.frankkie.camera11lib.Util.isCameraAppFromDocument;
+import nl.frankkie.camera11lib.Camera11Util;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 

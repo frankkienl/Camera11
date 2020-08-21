@@ -3,15 +3,24 @@ package nl.frankkie.camera11lib;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
-import android.widget.Toast;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -110,7 +119,7 @@ public class Camera11 {
         //Filter on IntentFilters
         List<CameraAppModel> cameraApps = null;
         try {
-            cameraApps = Util.getCameraAppsFromPackageInfos(cameraPermissionPackages);
+            cameraApps = Camera11Util.getCameraAppsFromPackageInfos(cameraPermissionPackages);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -119,35 +128,76 @@ public class Camera11 {
         }
         //If there is only one app, use that one.
         if (cameraApps.size() == 1) {
-            //Get correct component
-            CameraAppModel cameraApp = cameraApps.get(0);
-            ComponentName correctComponent = cameraApp.componentNames.get(0); //Big assumption here.
-
-            //Make intent
-            Intent intent = new Intent();
-            intent.setComponent(correctComponent);
-            intent.setAction(action);
-            intent.putExtra(MediaStore.EXTRA_OUTPUT, output);
-            if (intent.resolveActivity(activity.getPackageManager()) != null) {
-                try {
-                    //Start intent
-                    activity.startActivityForResult(intent, requestCode);
-                } catch (RuntimeException e) {
-                    RuntimeException up = new RuntimeException("Error starting camera", e);
-                    //Throw up to caller
-                    throw up;
-                }
-            }
+            startIntentForCameraApp(activity, cameraApps.get(0), action, output, requestCode);
         }
-
+        //Otherwise, show chooser
         if (cameraApps.size() > 1) {
             //Show list to choose from
-            showCameraChooser(activity, cameraApps);
+            showCameraChooser(activity, cameraApps, action, output, requestCode);
         }
     }
 
-    public static void showCameraChooser(Context context, List<CameraAppModel> cameraAppModels) {
-        Toast.makeText(context, "TODO!!!!!", Toast.LENGTH_LONG).show();
+    private static void startIntentForCameraApp(Activity activity, CameraAppModel cameraApp, String action, Uri output, int requestCode) {
+        //Get correct component
+        ComponentName correctComponent = cameraApp.componentNames.get(0); //Big assumption here.
+
+        //Make intent
+        Intent intent = new Intent();
+        intent.setComponent(correctComponent);
+        intent.setAction(action);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, output);
+        if (intent.resolveActivity(activity.getPackageManager()) != null) {
+            try {
+                //Start intent
+                activity.startActivityForResult(intent, requestCode);
+            } catch (RuntimeException e) {
+                RuntimeException up = new RuntimeException("Error starting camera", e);
+                //Throw up to caller
+                throw up;
+            }
+        }
+    }
+
+    public static void showCameraChooser(final Activity activity, final List<CameraAppModel> cameraAppModels, final String action, final Uri output, final int requestCode) {
+        final Dialog dialog = new Dialog(activity);
+        dialog.setContentView(R.layout.chooser_dialog);
+        dialog.setCancelable(true);
+        ListView listView = dialog.findViewById(R.id.chooserDialogListView);
+        listView.setAdapter(new CameraAppListViewAdapter(activity, cameraAppModels));
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                CameraAppModel cameraApp = cameraAppModels.get(position);
+                startIntentForCameraApp(activity, cameraApp, action, output, requestCode);
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
+    }
+
+    static class CameraAppListViewAdapter extends ArrayAdapter<CameraAppModel> {
+        private Activity activity;
+
+        CameraAppListViewAdapter(Activity activity, List<CameraAppModel> cameraApps) {
+            super(activity, R.layout.chooser_item, cameraApps);
+            this.activity = activity;
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+//            return super.getView(position, convertView, parent);
+            if (convertView == null) {
+                convertView = activity.getLayoutInflater().inflate(R.layout.chooser_item, parent, false);
+            }
+            CameraAppModel cameraApp = getItem(position);
+            TextView firstLine = convertView.findViewById(R.id.firstLine);
+            firstLine.setText(cameraApp.packageInfo.applicationInfo.name);
+            TextView secondLine = convertView.findViewById(R.id.secondLine);
+            secondLine.setText(cameraApp.componentNames.get(0).getPackageName() + "/" + cameraApp.componentNames.get(0).getShortClassName());
+            ImageView imageView = convertView.findViewById(R.id.icon);
+            return convertView;
+        }
     }
 
 }
