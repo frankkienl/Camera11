@@ -5,8 +5,10 @@
     android:orientation="vertical">
 
     <TextView
+        android:layout_margin="6dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:textSize="18sp"
         android:text="Pick a Camera app" />
 
     <ListView

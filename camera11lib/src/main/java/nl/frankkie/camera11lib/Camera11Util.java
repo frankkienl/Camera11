@@ -1,8 +1,11 @@
 package nl.frankkie.camera11lib;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.provider.MediaStore;
 
 import org.w3c.dom.Document;
@@ -21,93 +24,57 @@ import fr.xgouchet.axml.CompressedXmlParser;
 
 class Camera11Util {
 
-    public static List<CameraAppModel> getCameraAppsFromPackageInfos(List<PackageInfo> packageInfos) throws IOException {
-        ArrayList<CameraAppModel> cameraApps = new ArrayList<CameraAppModel>();
-        for (PackageInfo somePackage : packageInfos) {
+    public static List<CameraApp> getCameraApps(Context context) {
+        //Step 1 - Get apps with Camera permission
+        List<PackageInfo> cameraPermissionPackages = getAppsWithCameraPermission(context);
+        //Step 2 - Filter out apps with the correct intent-filter(s)
+        List<CameraApp> cameraApps = new ArrayList<CameraApp>();
+        for (PackageInfo somePackage : cameraPermissionPackages) {
             try {
+                //Step 2a - Get the AndroidManifest.xml
                 Document doc = readAndroidManifestFromPackageInfo(somePackage);
-                List<ComponentName> componentNameList = getCameraComponentNamesFromDocument(doc);
-                if (componentNameList.size() == 0) {
-                    continue;
+                //Step 2b - Get Camera ComponentNames from Manifest
+                List<ComponentName> componentNames = getCameraComponentNamesFromDocument(doc);
+                if (componentNames.size() == 0) {
+                    continue; //This is not a Camera app
                 }
-                cameraApps.add(new CameraAppModel(somePackage, componentNameList));
+                //Step 2c - Create CameraAppModel
+                CameraApp cameraApp = new CameraApp(somePackage, componentNames);
+                cameraApps.add(cameraApp);
             } catch (Exception e) {
-                //Couldn't read this app.
+                //ignore
             }
         }
+
         return cameraApps;
     }
 
-
-    public static List<PackageInfo> getCameraAppsPackageInfos(List<PackageInfo> packageInfos) {
-        //There seems to be no easy way to get IntentFilters from the PackageManager.
-        //So... Let's look at the AndroidManifest.xml
-        ArrayList<PackageInfo> cameraApps = new ArrayList<PackageInfo>();
-        for (PackageInfo somePackage : packageInfos) {
-            if (isCameraAppFromPackageInfo(somePackage)) {
-                cameraApps.add(somePackage);
+    public static List<PackageInfo> getAppsWithCameraPermission(Context context){
+        //Get a list of compatible apps
+        PackageManager pm = context.getPackageManager();
+        List<PackageInfo> installedPackages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS);
+        ArrayList<PackageInfo> cameraPermissionPackages = new ArrayList<PackageInfo>();
+        //filter out only camera apps
+        for (PackageInfo somePackage : installedPackages) {
+            //- A camera app should have the Camera permission
+            boolean hasCameraPermission = false;
+            if (somePackage.requestedPermissions == null || somePackage.requestedPermissions.length == 0) {
+                continue;
             }
-        }
-        return cameraApps;
-    }
-
-    public static List<ComponentName> getCameraAppsComponentNames(List<PackageInfo> packageInfos) throws IOException {
-        ArrayList<ComponentName> componentNames = new ArrayList<ComponentName>();
-        for (PackageInfo somePackage : packageInfos) {
-            try {
-                Document doc = readAndroidManifestFromPackageInfo(somePackage);
-                List<ComponentName> componentNameList = getCameraComponentNamesFromDocument(doc);
-                componentNames.addAll(componentNameList);
-            } catch (Exception e) {
-                //Couldn't read this app.
-            }
-        }
-        return componentNames;
-    }
-
-    public static boolean isCameraAppFromPackageInfo(PackageInfo somePackage) {
-        try {
-            Document doc = readAndroidManifestFromPackageInfo(somePackage);
-            return isCameraAppFromDocument(doc);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    public static List<ComponentName> getCameraComponentNamesFromDocument(Document doc) {
-        @SuppressLint("InlinedApi")
-        String[] correctActions = {MediaStore.ACTION_IMAGE_CAPTURE, MediaStore.ACTION_IMAGE_CAPTURE_SECURE, MediaStore.ACTION_VIDEO_CAPTURE};
-        ArrayList<ComponentName> componentNames = new ArrayList<ComponentName>();
-        Element manifestElement = (Element) doc.getElementsByTagName("manifest").item(0);
-        String packageName = manifestElement.getAttribute("package");
-        Element applicationElement = (Element) manifestElement.getElementsByTagName("application").item(0);
-        NodeList activities = applicationElement.getElementsByTagName("activity");
-        for (int i = 0; i < activities.getLength(); i++) {
-            Element activityElement = (Element) activities.item(i);
-            String activityName = activityElement.getAttribute("android:name");
-            NodeList intentFiltersList = activityElement.getElementsByTagName("intent-filter");
-            for (int j = 0; j < intentFiltersList.getLength(); j++) {
-                Element intentFilterElement = (Element) intentFiltersList.item(j);
-                NodeList actionsList = intentFilterElement.getElementsByTagName("action");
-                for (int k = 0; k < actionsList.getLength(); k++) {
-                    Element actionElement = (Element) actionsList.item(k);
-                    String actionName = actionElement.getAttribute("android:name");
-                    for (String correctAction : correctActions) {
-                        if (actionName.equals(correctAction)) {
-                            //this activity has an intent filter with a correct action, add this to the list.
-                            componentNames.add(new ComponentName(packageName, activityName));
-                        }
+            for (String requestPermission : somePackage.requestedPermissions) {
+                if (requestPermission.equals(Manifest.permission.CAMERA)) {
+                    //Ask for Camera permission, now see if it's granted.
+                    if (pm.checkPermission(Manifest.permission.CAMERA, somePackage.packageName) == PackageManager.PERMISSION_GRANTED) {
+                        hasCameraPermission = true;
+                        break;
                     }
                 }
             }
+            if (hasCameraPermission) {
+                cameraPermissionPackages.add(somePackage);
+            }
         }
-        return componentNames;
-    }
-
-    public static boolean isCameraAppFromDocument(Document doc) {
-        List<ComponentName> componentNames = getCameraComponentNamesFromDocument(doc);
-        return !componentNames.isEmpty();
+        return cameraPermissionPackages;
     }
 
     public static Document readAndroidManifestFromPackageInfo(PackageInfo packageInfo) throws IOException {
@@ -153,5 +120,35 @@ class Camera11Util {
         } catch (Exception e) {
             throw new IOException("Error reading AndroidManifest", e);
         }
+    }
+
+    public static List<ComponentName> getCameraComponentNamesFromDocument(Document doc) {
+        @SuppressLint("InlinedApi")
+        String[] correctActions = {MediaStore.ACTION_IMAGE_CAPTURE, MediaStore.ACTION_IMAGE_CAPTURE_SECURE, MediaStore.ACTION_VIDEO_CAPTURE};
+        ArrayList<ComponentName> componentNames = new ArrayList<ComponentName>();
+        Element manifestElement = (Element) doc.getElementsByTagName("manifest").item(0);
+        String packageName = manifestElement.getAttribute("package");
+        Element applicationElement = (Element) manifestElement.getElementsByTagName("application").item(0);
+        NodeList activities = applicationElement.getElementsByTagName("activity");
+        for (int i = 0; i < activities.getLength(); i++) {
+            Element activityElement = (Element) activities.item(i);
+            String activityName = activityElement.getAttribute("android:name");
+            NodeList intentFiltersList = activityElement.getElementsByTagName("intent-filter");
+            for (int j = 0; j < intentFiltersList.getLength(); j++) {
+                Element intentFilterElement = (Element) intentFiltersList.item(j);
+                NodeList actionsList = intentFilterElement.getElementsByTagName("action");
+                for (int k = 0; k < actionsList.getLength(); k++) {
+                    Element actionElement = (Element) actionsList.item(k);
+                    String actionName = actionElement.getAttribute("android:name");
+                    for (String correctAction : correctActions) {
+                        if (actionName.equals(correctAction)) {
+                            //this activity has an intent filter with a correct action, add this to the list.
+                            componentNames.add(new ComponentName(packageName, activityName));
+                        }
+                    }
+                }
+            }
+        }
+        return componentNames;
     }
 }

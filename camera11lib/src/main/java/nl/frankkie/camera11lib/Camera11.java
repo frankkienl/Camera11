@@ -1,16 +1,16 @@
 package nl.frankkie.camera11lib;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -22,8 +22,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -92,39 +90,10 @@ public class Camera11 {
     }
 
     private static void openCameraPost11(Activity activity, String action, Uri output, int requestCode) {
-        //Get a list of compatible apps
-        PackageManager pm = activity.getPackageManager();
-        List<PackageInfo> installedPackages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS);
-        ArrayList<PackageInfo> cameraPermissionPackages = new ArrayList<PackageInfo>();
-        //filter out only camera apps
-        for (PackageInfo somePackage : installedPackages) {
-            //- A camera app should have the Camera permission
-            boolean hasCameraPermission = false;
-            if (somePackage.requestedPermissions == null || somePackage.requestedPermissions.length == 0) {
-                continue;
-            }
-            for (String requestPermission : somePackage.requestedPermissions) {
-                if (requestPermission.equals(Manifest.permission.CAMERA)) {
-                    //Ask for Camera permission, now see if it's granted.
-                    if (pm.checkPermission(Manifest.permission.CAMERA, somePackage.packageName) == PackageManager.PERMISSION_GRANTED) {
-                        hasCameraPermission = true;
-                        break;
-                    }
-                }
-            }
-            if (hasCameraPermission) {
-                cameraPermissionPackages.add(somePackage);
-            }
-        }
-        //Filter on IntentFilters
-        List<CameraAppModel> cameraApps = null;
-        try {
-            cameraApps = Camera11Util.getCameraAppsFromPackageInfos(cameraPermissionPackages);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if (cameraApps == null) {
-            throw new NullPointerException("no camera apps found");
+        List<CameraApp> cameraApps = Camera11Util.getCameraApps(activity);
+        //No apps found (should never happen)
+        if (cameraApps.size() == 0) {
+            Log.e("Camera11", "no camera apps found");
         }
         //If there is only one app, use that one.
         if (cameraApps.size() == 1) {
@@ -137,7 +106,7 @@ public class Camera11 {
         }
     }
 
-    private static void startIntentForCameraApp(Activity activity, CameraAppModel cameraApp, String action, Uri output, int requestCode) {
+    private static void startIntentForCameraApp(Activity activity, CameraApp cameraApp, String action, Uri output, int requestCode) {
         //Get correct component
         ComponentName correctComponent = cameraApp.componentNames.get(0); //Big assumption here.
 
@@ -158,7 +127,7 @@ public class Camera11 {
         }
     }
 
-    public static void showCameraChooser(final Activity activity, final List<CameraAppModel> cameraAppModels, final String action, final Uri output, final int requestCode) {
+    private static void showCameraChooser(final Activity activity, final List<CameraApp> cameraAppModels, final String action, final Uri output, final int requestCode) {
         final Dialog dialog = new Dialog(activity);
         dialog.setContentView(R.layout.chooser_dialog);
         dialog.setCancelable(true);
@@ -167,7 +136,7 @@ public class Camera11 {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                CameraAppModel cameraApp = cameraAppModels.get(position);
+                CameraApp cameraApp = cameraAppModels.get(position);
                 startIntentForCameraApp(activity, cameraApp, action, output, requestCode);
                 dialog.dismiss();
             }
@@ -175,27 +144,50 @@ public class Camera11 {
         dialog.show();
     }
 
-    static class CameraAppListViewAdapter extends ArrayAdapter<CameraAppModel> {
+    static class CameraAppListViewAdapter extends ArrayAdapter<CameraApp> {
         private Activity activity;
+        private PackageManager pm;
 
-        CameraAppListViewAdapter(Activity activity, List<CameraAppModel> cameraApps) {
+        CameraAppListViewAdapter(Activity activity, List<CameraApp> cameraApps) {
             super(activity, R.layout.chooser_item, cameraApps);
             this.activity = activity;
+            this.pm = activity.getPackageManager();
         }
 
         @NonNull
         @Override
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-//            return super.getView(position, convertView, parent);
+            //Get info
+            CameraApp cameraApp = getItem(position);
+            ComponentName componentName = cameraApp.componentNames.get(0);
+            CharSequence appName = pm.getApplicationLabel(cameraApp.packageInfo.applicationInfo);
+            CharSequence appDesc = null; //cameraApp.componentNames.get(0).getShortClassName();
+            Drawable appIcon = null;
+            try {
+                appIcon = pm.getActivityIcon(componentName);
+            } catch (Exception e) {
+                //ignore
+            }
+
+            //Set UI
             if (convertView == null) {
                 convertView = activity.getLayoutInflater().inflate(R.layout.chooser_item, parent, false);
             }
-            CameraAppModel cameraApp = getItem(position);
             TextView firstLine = convertView.findViewById(R.id.firstLine);
-            firstLine.setText(cameraApp.packageInfo.applicationInfo.name);
+            firstLine.setText(appName);
             TextView secondLine = convertView.findViewById(R.id.secondLine);
-            secondLine.setText(cameraApp.componentNames.get(0).getPackageName() + "/" + cameraApp.componentNames.get(0).getShortClassName());
+            if (appDesc == null) {
+                secondLine.setVisibility(View.GONE);
+                secondLine.setText("");
+            } else {
+                secondLine.setVisibility(View.VISIBLE);
+                secondLine.setText(appDesc);
+            }
             ImageView imageView = convertView.findViewById(R.id.icon);
+            imageView.setImageResource(R.drawable.ic_android_black_24dp); //reset
+            if (appIcon != null) {
+                imageView.setImageDrawable(appIcon);
+            }
             return convertView;
         }
     }

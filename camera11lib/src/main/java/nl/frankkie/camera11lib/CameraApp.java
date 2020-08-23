@@ -6,8 +6,8 @@ import android.content.pm.PackageInfo;
 import java.util.List;
 import java.util.Map;
 
-class CameraAppModel {
-    public CameraAppModel(PackageInfo packageInfo, List<ComponentName> componentNames) {
+class CameraApp {
+    public CameraApp(PackageInfo packageInfo, List<ComponentName> componentNames) {
         this.packageInfo = packageInfo;
         this.componentNames = componentNames;
     }
