@@ -30,5 +30,10 @@
         android:layout_height="wrap_content"
         android:text="Open Camera via Queries" />
 
+    <Button
+        android:id="@+id/btnReadVectorDrawable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Try to read a VectorDrawable" />
 
 </LinearLayout>

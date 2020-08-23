@@ -6,11 +6,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import fr.xgouchet.axml.CompressedXmlParser
 import kotlinx.android.synthetic.main.activity_main.*
 import nl.frankkie.camera11lib.Camera11
 import java.io.File
+import java.util.zip.ZipFile
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +26,7 @@ class MainActivity : AppCompatActivity() {
         btnOpenCamera11.setOnClickListener { openCamera11() }
         btnOpenCameraNormal.setOnClickListener { openCameraNormal() }
         btnOpenCameraQueries.setOnClickListener { openCameraQueries() }
+        btnReadVectorDrawable.setOnClickListener { readVectorDrawable() }
     }
 
     private fun openCamera11() {
@@ -52,6 +56,31 @@ class MainActivity : AppCompatActivity() {
         val chooser = Intent.createChooser(intent, "Camera app chooser")
         if (intent.resolveActivity(packageManager) != null) {
             startActivity(chooser)
+        }
+    }
+
+    private fun readVectorDrawable() {
+        if (android.os.Build.VERSION.SDK_INT < 21) {
+            Toast.makeText(this, "This might not work on lower than API 21", Toast.LENGTH_LONG).show()
+        }
+        val thisPackInfo = packageManager.getPackageInfo(packageName, 0)
+        val apkFile = File(thisPackInfo.applicationInfo.publicSourceDir)
+        val apkZipFile = ZipFile(apkFile, ZipFile.OPEN_READ)
+        val entries = apkZipFile.entries()
+        val sb = StringBuilder();
+        while (entries.hasMoreElements()){
+            sb.append(entries.nextElement().name).append("\n")
+        }
+        val entriesString = sb.toString()
+        Log.v("Camera11", entriesString)
+        val vectorDrawableEntry = apkZipFile.getEntry("res/drawable-anydpi-v21/ic_camera_aperture.xml")
+        val vectorDrawableInputStream = apkZipFile.getInputStream(vectorDrawableEntry)
+        try {
+            val vectorDrawableDoc = CompressedXmlParser().parseDOM(vectorDrawableInputStream)
+            Toast.makeText(this, "VectorDrawable parsed", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error parsing VectorDrawable", Toast.LENGTH_LONG).show()
         }
     }
 }
