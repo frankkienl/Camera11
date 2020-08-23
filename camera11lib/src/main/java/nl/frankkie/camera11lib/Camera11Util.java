@@ -95,38 +95,7 @@ public class Camera11Util {
      * @throws IOException when AndroidManifest could not be read.
      */
     public static Document readAndroidManifestFromPackageInfo(PackageInfo packageInfo) throws IOException {
-        File apkFile = null;
-        File publicSourceDir = new File(packageInfo.applicationInfo.publicSourceDir);
-        File sourceDir = new File(packageInfo.applicationInfo.sourceDir);
-
-        //Check if publicSourceDir is the APK file
-        if (publicSourceDir.exists() && publicSourceDir.canRead() && publicSourceDir.getName().endsWith(".apk") && !publicSourceDir.isDirectory()) {
-            apkFile = publicSourceDir;
-        }
-        //Check if sourceDir is the APK file
-        else if (sourceDir.exists() && sourceDir.canRead() && sourceDir.getName().endsWith(".apk") && !sourceDir.isDirectory()) {
-            apkFile = sourceDir;
-        }
-        //Check if the sourceDir is a directory
-        else {
-            File[] listFiles = sourceDir.listFiles();
-
-            if (listFiles == null) {
-                throw new IOException("Error reading sourceDir");
-            }
-            for (File someFile : listFiles) {
-                if (someFile.getName().endsWith(".apk")) {
-                    //Ladies and gentlemen, we've got em.
-                    //(Assumung only 1 apk-file, no split apk bs, no dynamic features, etc.)
-                    apkFile = someFile;
-                    break;
-                }
-            }
-        }
-        //No APK file found.
-        if (apkFile == null) {
-            throw new IOException("APK file not found");
-        }
+        File apkFile  = new File(packageInfo.applicationInfo.publicSourceDir);
         //Get AndroidManifest.xml from APK
         ZipFile apkZipFile = new ZipFile(apkFile, ZipFile.OPEN_READ);
         ZipEntry manifestEntry = apkZipFile.getEntry("AndroidManifest.xml");
