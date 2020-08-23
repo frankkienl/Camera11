@@ -22,11 +22,17 @@ import java.util.zip.ZipFile;
 
 import fr.xgouchet.axml.CompressedXmlParser;
 
-class Camera11Util {
+public class Camera11Util {
 
+    /**
+     * Get a list of CameraApps
+     * @param context
+     * @return list of CameraApps
+     * @see CameraApp
+     */
     public static List<CameraApp> getCameraApps(Context context) {
         //Step 1 - Get apps with Camera permission
-        List<PackageInfo> cameraPermissionPackages = getAppsWithCameraPermission(context);
+        List<PackageInfo> cameraPermissionPackages = getPackageInfosWithCameraPermission(context);
         //Step 2 - Filter out apps with the correct intent-filter(s)
         List<CameraApp> cameraApps = new ArrayList<CameraApp>();
         for (PackageInfo somePackage : cameraPermissionPackages) {
@@ -49,7 +55,12 @@ class Camera11Util {
         return cameraApps;
     }
 
-    public static List<PackageInfo> getAppsWithCameraPermission(Context context){
+    /**
+     * Get a list of PackageInfo, of apps with the Camera permission granted.
+     * @param context
+     * @return list of PackageInfo, of apps with the Camera permission
+     */
+    public static List<PackageInfo> getPackageInfosWithCameraPermission(Context context){
         //Get a list of compatible apps
         PackageManager pm = context.getPackageManager();
         List<PackageInfo> installedPackages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS);
@@ -77,6 +88,12 @@ class Camera11Util {
         return cameraPermissionPackages;
     }
 
+    /**
+     * Read the AndroidManifest.xml of a PackageInfo into a Document
+     * @param packageInfo
+     * @return document containing AndroidManifest
+     * @throws IOException when AndroidManifest could not be read.
+     */
     public static Document readAndroidManifestFromPackageInfo(PackageInfo packageInfo) throws IOException {
         File apkFile = null;
         File publicSourceDir = new File(packageInfo.applicationInfo.publicSourceDir);
@@ -122,6 +139,11 @@ class Camera11Util {
         }
     }
 
+    /**
+     * Get ComponentNames (Activities) that have the correct IntentFilter from Document (AndroidManifest.xml)
+     * @param doc the AndroidManifest as Document
+     * @return list of ComponentNames with the correct IntentFilter.
+     */
     public static List<ComponentName> getCameraComponentNamesFromDocument(Document doc) {
         @SuppressLint("InlinedApi")
         String[] correctActions = {MediaStore.ACTION_IMAGE_CAPTURE, MediaStore.ACTION_IMAGE_CAPTURE_SECURE, MediaStore.ACTION_VIDEO_CAPTURE};
