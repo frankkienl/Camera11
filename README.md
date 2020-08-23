@@ -1,6 +1,8 @@
 ## Camera11
 Camera intent for Android 11
 
+[![](https://jitpack.io/v/frankkienl/Camera11.svg)](https://jitpack.io/#frankkienl/Camera11)
+
 Since Android 11, it's no longer possible to fire a image-capture Intent, and expect an IntentChooser to pop up automatically.
 For reasons, Google decided that it's better to always launch the pre-install camera app, instead of let the user have choice.
 To make it harder for developer to give this choice back to the user, they've crippled the IntentResolver, to don't return any results when querying.
