@@ -1,16 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/btnOpenCamera"
-        android:layout_width="wrap_content"
+    <TextView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="@string/open_camera" />
+        android:text="Camera11 demo app"
+        android:textSize="22sp" />
 
-</RelativeLayout>
+    <Button
+        android:id="@+id/btnOpenCameraNormal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Camera via normal intent" />
+
+    <Button
+        android:id="@+id/btnOpenCamera11"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Camera via Camera11 lib" />
+
+    <Button
+        android:id="@+id/btnOpenCameraQueries"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open Camera via Queries" />
+
+
+</LinearLayout>
